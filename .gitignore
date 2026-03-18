@@ -11,3 +11,5 @@ desktop.ini
 __pycache__/
 *.pyc
 .env
+venv/
+sessions/_autosave.json
