@@ -63,6 +63,8 @@ def save_session(
     search_mode: str = "",
     manual_pdf_paths: dict[int, str] | None = None,
     dl_statuses: dict[int, str] | None = None,
+    citations_data: dict[int, dict] | None = None,
+    references_data: dict[int, dict] | None = None,
 ) -> Path:
     """Save current session to a JSON file."""
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -82,6 +84,8 @@ def save_session(
         ],
         "manual_pdf_paths": {str(k): v for k, v in (manual_pdf_paths or {}).items()},
         "dl_statuses": {str(k): v for k, v in (dl_statuses or {}).items()},
+        "citations_data": {str(k): v for k, v in (citations_data or {}).items()},
+        "references_data": {str(k): v for k, v in (references_data or {}).items()},
     }
 
     safe_name = "".join(c if c.isalnum() or c in "-_ " else "" for c in name)
@@ -113,6 +117,8 @@ def load_session(filepath: Path) -> dict[str, Any]:
         ],
         "manual_pdf_paths": {int(k): v for k, v in data.get("manual_pdf_paths", {}).items()},
         "dl_statuses": {int(k): v for k, v in data.get("dl_statuses", {}).items()},
+        "citations_data": {int(k): v for k, v in data.get("citations_data", {}).items()},
+        "references_data": {int(k): v for k, v in data.get("references_data", {}).items()},
     }
 
 
@@ -157,6 +163,8 @@ def autosave(
     search_mode: str = "",
     manual_pdf_paths: dict[int, str] | None = None,
     dl_statuses: dict[int, str] | None = None,
+    citations_data: dict[int, dict] | None = None,
+    references_data: dict[int, dict] | None = None,
 ) -> Path:
     """Auto-save current state to _autosave.json."""
     return save_session(
@@ -164,6 +172,7 @@ def autosave(
         query, search_results, all_papers, selected, dl_results,
         ai_analysis=ai_analysis, search_mode=search_mode,
         manual_pdf_paths=manual_pdf_paths, dl_statuses=dl_statuses,
+        citations_data=citations_data, references_data=references_data,
     )
 
 

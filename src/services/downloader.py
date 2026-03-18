@@ -235,17 +235,67 @@ class PaperDownloader:
                 "source": "MDPI 직접",
                 "referer": f"https://www.mdpi.com/{doi_suffix}",
             })
-        if "10.1186/" in doi:
+        # Springer (10.1007, 10.1186, 10.1140, 10.1023, etc.)
+        if any(doi.startswith(p) for p in ["10.1007/", "10.1186/", "10.1140/", "10.1023/", "10.1365/"]):
             publisher_patterns.append({
                 "url": f"https://link.springer.com/content/pdf/{doi}.pdf",
                 "source": "Springer 직접",
                 "referer": f"https://link.springer.com/article/{doi}",
             })
         if "10.1038/" in doi:
+            # Nature uses both nature.com and springer
             publisher_patterns.append({
                 "url": f"https://www.nature.com/articles/{doi_suffix}.pdf",
                 "source": "Nature 직접",
                 "referer": f"https://www.nature.com/articles/{doi_suffix}",
+            })
+            publisher_patterns.append({
+                "url": f"https://link.springer.com/content/pdf/{doi}.pdf",
+                "source": "Springer (Nature)",
+                "referer": f"https://www.nature.com/articles/{doi_suffix}",
+            })
+        # Wiley
+        if any(doi.startswith(p) for p in ["10.1002/", "10.1111/", "10.1034/"]):
+            publisher_patterns.append({
+                "url": f"https://onlinelibrary.wiley.com/doi/pdfdirect/{doi}",
+                "source": "Wiley 직접",
+                "referer": f"https://onlinelibrary.wiley.com/doi/{doi}",
+            })
+        # Elsevier / ScienceDirect
+        if any(doi.startswith(p) for p in ["10.1016/", "10.1006/"]):
+            pii = doi_suffix.replace("/", "")
+            publisher_patterns.append({
+                "url": f"https://www.sciencedirect.com/science/article/pii/{pii}/pdfft",
+                "source": "ScienceDirect 직접",
+                "referer": f"https://www.sciencedirect.com/science/article/pii/{pii}",
+            })
+        # Taylor & Francis
+        if "10.1080/" in doi:
+            publisher_patterns.append({
+                "url": f"https://www.tandfonline.com/doi/pdf/{doi}",
+                "source": "Taylor & Francis 직접",
+                "referer": f"https://www.tandfonline.com/doi/full/{doi}",
+            })
+        # IEEE
+        if "10.1109/" in doi:
+            publisher_patterns.append({
+                "url": f"https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber={doi_suffix}",
+                "source": "IEEE 직접",
+                "referer": f"https://ieeexplore.ieee.org/document/{doi_suffix}",
+            })
+        # ACS
+        if "10.1021/" in doi:
+            publisher_patterns.append({
+                "url": f"https://pubs.acs.org/doi/pdf/{doi}",
+                "source": "ACS 직접",
+                "referer": f"https://pubs.acs.org/doi/{doi}",
+            })
+        # RSC
+        if "10.1039/" in doi:
+            publisher_patterns.append({
+                "url": f"https://pubs.rsc.org/en/content/articlepdf/{doi_suffix}",
+                "source": "RSC 직접",
+                "referer": f"https://pubs.rsc.org/en/content/articlelanding/{doi_suffix}",
             })
 
         for p in publisher_patterns:

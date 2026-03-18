@@ -204,6 +204,32 @@ def _collect_dl_statuses() -> dict[int, str]:
     return statuses
 
 
+def _collect_citations() -> dict[int, dict]:
+    """Collect all citations_{i} entries from session state."""
+    data = {}
+    for key, val in st.session_state.items():
+        if key.startswith("citations_") and isinstance(val, dict):
+            try:
+                idx = int(key.replace("citations_", ""))
+                data[idx] = val
+            except ValueError:
+                pass
+    return data
+
+
+def _collect_references() -> dict[int, dict]:
+    """Collect all references_{i} entries from session state."""
+    data = {}
+    for key, val in st.session_state.items():
+        if key.startswith("references_") and isinstance(val, dict):
+            try:
+                idx = int(key.replace("references_", ""))
+                data[idx] = val
+            except ValueError:
+                pass
+    return data
+
+
 def do_autosave():
     """Auto-save current state to disk."""
     if st.session_state.all_papers:
@@ -218,6 +244,8 @@ def do_autosave():
                 search_mode=st.session_state.get("last_search_mode", ""),
                 manual_pdf_paths=_collect_manual_pdfs(),
                 dl_statuses=_collect_dl_statuses(),
+                citations_data=_collect_citations(),
+                references_data=_collect_references(),
             )
         except Exception:
             pass
@@ -241,6 +269,14 @@ def restore_session(data: dict):
     # Restore download statuses
     for idx, status in data.get("dl_statuses", {}).items():
         st.session_state[f"dl_status_{idx}"] = status
+
+    # Restore citations
+    for idx, cite_data in data.get("citations_data", {}).items():
+        st.session_state[f"citations_{idx}"] = cite_data
+
+    # Restore references
+    for idx, ref_data in data.get("references_data", {}).items():
+        st.session_state[f"references_{idx}"] = ref_data
 
 
 # ── Custom CSS ───────────────────────────────────────────────
@@ -376,18 +412,82 @@ CUSTOM_CSS = """
 
 /* ── Paper Card ── */
 .paper-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
     border-radius: 12px;
     padding: 1.25rem 1.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     transition: all 0.2s ease;
     position: relative;
 }
 .paper-card:hover {
-    border-color: #c7d2fe;
-    box-shadow: 0 4px 16px rgba(99,102,241,0.08);
+    border-color: #4f46e5;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.25);
     transform: translateY(-1px);
+    background: #312e81;
+}
+.paper-card:hover .paper-title {
+    color: #e0e7ff !important;
+}
+.paper-card:hover .paper-meta,
+.paper-card:hover .paper-meta span,
+.paper-card:hover .meta-item {
+    color: #c7d2fe !important;
+}
+.paper-card:hover .doi-link {
+    color: #a5b4fc !important;
+}
+
+/* ── Citation / Reference sub-cards ── */
+.cite-ref-card {
+    background: #1e1b4b !important;
+    border: 1px solid #3730a3 !important;
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.5rem;
+}
+.cite-ref-card .cr-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #e0e7ff;
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+.cite-ref-card .cr-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 0.75rem;
+    color: #a5b4fc;
+    align-items: center;
+}
+.cite-ref-card .doi-link {
+    color: #93c5fd !important;
+}
+.cite-ref-card .badge-oa {
+    background: #065f46 !important;
+    color: #a7f3d0 !important;
+}
+.cite-ref-card .badge-closed {
+    background: #7f1d1d !important;
+    color: #fca5a5 !important;
+}
+.cite-ref-card .badge-source {
+    background: #312e81 !important;
+    color: #c7d2fe !important;
+}
+.cite-ref-card.ref-card {
+    border-left: 3px solid #f59e0b !important;
+}
+.cite-ref-card.cite-card {
+    border-left: 3px solid #6366f1 !important;
+}
+
+/* ── Paper Divider (between cards) ── */
+.paper-divider {
+    border: none;
+    border-top: 1px dashed #c7d2fe;
+    margin: 1.2rem 0;
 }
 .paper-title {
     font-size: 0.95rem;
@@ -524,7 +624,25 @@ section[data-testid="stSidebar"] small {
     color: #a5b4fc !important;
 }
 
+/* ── Action button row: tight spacing ── */
+[data-testid="stHorizontalBlock"] {
+    gap: 0.35rem !important;
+}
+
 /* ── Buttons ── */
+.stButton > button {
+    padding: 0.35rem 0.6rem !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-height: 0 !important;
+    line-height: 1.3 !important;
+    height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
     border: none !important;
@@ -900,6 +1018,8 @@ with st.sidebar:
                 search_mode=st.session_state.get("last_search_mode", ""),
                 manual_pdf_paths=_collect_manual_pdfs(),
                 dl_statuses=_collect_dl_statuses(),
+                citations_data=_collect_citations(),
+                references_data=_collect_references(),
             )
             st.success(f"Saved: {filepath.name}")
 
@@ -1183,8 +1303,8 @@ if st.session_state.all_papers:
                 </div>
                 """, unsafe_allow_html=True)
 
-            # ── Action buttons row: Download, AI Summary, Attach PDF ──
-            btn_dl, btn_sum, btn_attach, btn_spacer = st.columns([1.5, 1.5, 1.5, 3.5])
+            # ── Action buttons row ──
+            btn_dl, btn_sum, btn_cite, btn_ref, btn_attach, _sp = st.columns([1.2, 1.4, 1.2, 1.2, 1.2, 3.8])
             with btn_dl:
                 if detected_pdf and not (dl_status and dl_status.startswith("fail:")):
                     st.button("✅ Downloaded", key=f"dl_btn_{i}", disabled=True)
@@ -1247,6 +1367,54 @@ if st.session_state.all_papers:
                     do_autosave()
                     st.rerun()
 
+            with btn_cite:
+                cite_key = f"citations_{i}"
+                has_citations = cite_key in st.session_state
+                if st.button(
+                    f"📚 Citations" + (f" ({len(st.session_state[cite_key]['items'])})" if has_citations else ""),
+                    key=f"cite_btn_{i}",
+                ):
+                    from src.services.citations import fetch_all_citations
+                    with st.spinner("인용 논문 검색 중..."):
+                        try:
+                            citations, total = run_async(fetch_all_citations(paper, max_results=20))
+                            st.session_state[cite_key] = {
+                                "items": citations,
+                                "total": total,
+                            }
+                        except Exception as e:
+                            st.session_state[cite_key] = {
+                                "items": [],
+                                "total": 0,
+                                "error": str(e),
+                            }
+                    do_autosave()
+                    st.rerun()
+
+            with btn_ref:
+                ref_key = f"references_{i}"
+                has_refs = ref_key in st.session_state
+                if st.button(
+                    f"📖 References" + (f" ({len(st.session_state[ref_key]['items'])})" if has_refs else ""),
+                    key=f"ref_btn_{i}",
+                ):
+                    from src.services.citations import fetch_all_references
+                    with st.spinner("참고 문헌 검색 중..."):
+                        try:
+                            refs, total = run_async(fetch_all_references(paper, max_results=50))
+                            st.session_state[ref_key] = {
+                                "items": refs,
+                                "total": total,
+                            }
+                        except Exception as e:
+                            st.session_state[ref_key] = {
+                                "items": [],
+                                "total": 0,
+                                "error": str(e),
+                            }
+                    do_autosave()
+                    st.rerun()
+
             with btn_attach:
                 attach_expand_key = f"attach_expand_{i}"
                 if st.button(
@@ -1273,6 +1441,7 @@ if st.session_state.all_papers:
                     save_path.write_bytes(uploaded.getvalue())
                     st.session_state[manual_pdf_key] = str(save_path)
                     st.session_state[f"attach_expand_{i}"] = False
+                    do_autosave()
                     st.toast(f"PDF 연결됨: {uploaded.name}", icon="📎")
                     st.rerun()
 
@@ -1331,6 +1500,116 @@ if st.session_state.all_papers:
             if paper.summary:
                 with st.expander("AI Summary", expanded=True):
                     st.markdown(paper.summary)
+
+            # ── Citations expander ──
+            cite_key = f"citations_{i}"
+            if cite_key in st.session_state:
+                cite_data = st.session_state[cite_key]
+                cite_items = cite_data.get("items", [])
+                cite_total = cite_data.get("total", 0)
+                cite_error = cite_data.get("error")
+
+                with st.expander(
+                    f"📚 Citing Papers ({len(cite_items)} shown / {cite_total} total)",
+                    expanded=True,
+                ):
+                    if cite_error:
+                        st.error(f"Citation 조회 실패: {cite_error}")
+                    elif not cite_items:
+                        st.info("인용 논문이 없거나 조회할 수 없습니다.")
+                    else:
+                        for ci, cite in enumerate(cite_items):
+                            c_authors = cite.get("authors", [])
+                            if len(c_authors) > 3:
+                                c_author_str = f"{c_authors[0]} et al."
+                            elif c_authors:
+                                c_author_str = ", ".join(c_authors)
+                            else:
+                                c_author_str = "Unknown"
+
+                            c_year = cite.get("year") or "N/A"
+                            c_journal = cite.get("journal") or ""
+                            c_doi = cite.get("doi")
+                            c_oa = cite.get("is_oa", False)
+                            c_source = cite.get("source", "")
+
+                            oa_badge = '<span class="badge badge-oa">OA</span>' if c_oa else '<span class="badge badge-closed">Closed</span>'
+                            doi_html = f' · <a class="doi-link" href="https://doi.org/{c_doi}" target="_blank">{c_doi}</a>' if c_doi else ""
+
+                            st.markdown(f"""
+                            <div class="cite-ref-card cite-card">
+                                <div class="cr-title">{ci+1}. {cite['title']}</div>
+                                <div class="cr-meta">
+                                    <span>{c_author_str}</span>
+                                    <span>{c_year}</span>
+                                    <span>{c_journal}</span>
+                                    {oa_badge}
+                                    <span class="badge badge-source">{c_source}</span>
+                                </div>
+                                {f'<div style="margin-top:4px">{doi_html}</div>' if doi_html else ''}
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            # Show abstract if available
+                            if cite.get("abstract"):
+                                with st.expander(f"Abstract #{ci+1}", expanded=False):
+                                    st.write(cite["abstract"])
+
+            # ── References expander ──
+            ref_key = f"references_{i}"
+            if ref_key in st.session_state:
+                ref_data = st.session_state[ref_key]
+                ref_items = ref_data.get("items", [])
+                ref_total = ref_data.get("total", 0)
+                ref_error = ref_data.get("error")
+
+                with st.expander(
+                    f"📖 References ({len(ref_items)} shown / {ref_total} total)",
+                    expanded=True,
+                ):
+                    if ref_error:
+                        st.error(f"Reference 조회 실패: {ref_error}")
+                    elif not ref_items:
+                        st.info("참고 문헌 정보가 없거나 조회할 수 없습니다.")
+                    else:
+                        for ri, ref in enumerate(ref_items):
+                            r_authors = ref.get("authors", [])
+                            if len(r_authors) > 3:
+                                r_author_str = f"{r_authors[0]} et al."
+                            elif r_authors:
+                                r_author_str = ", ".join(r_authors)
+                            else:
+                                r_author_str = "Unknown"
+
+                            r_year = ref.get("year") or "N/A"
+                            r_journal = ref.get("journal") or ""
+                            r_doi = ref.get("doi")
+                            r_oa = ref.get("is_oa", False)
+                            r_source = ref.get("source", "")
+
+                            oa_badge = '<span class="badge badge-oa">OA</span>' if r_oa else '<span class="badge badge-closed">Closed</span>'
+                            doi_html = f' · <a class="doi-link" href="https://doi.org/{r_doi}" target="_blank">{r_doi}</a>' if r_doi else ""
+
+                            st.markdown(f"""
+                            <div class="cite-ref-card ref-card">
+                                <div class="cr-title">{ri+1}. {ref['title']}</div>
+                                <div class="cr-meta">
+                                    <span>{r_author_str}</span>
+                                    <span>{r_year}</span>
+                                    <span>{r_journal}</span>
+                                    {oa_badge}
+                                    <span class="badge badge-source">{r_source}</span>
+                                </div>
+                                {f'<div style="margin-top:4px">{doi_html}</div>' if doi_html else ''}
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            if ref.get("abstract"):
+                                with st.expander(f"Abstract #{ri+1}", expanded=False):
+                                    st.write(ref["abstract"])
+
+            # ── Divider between paper cards ──
+            st.markdown('<hr class="paper-divider">', unsafe_allow_html=True)
 
     selected_count = len(st.session_state.selected)
 
