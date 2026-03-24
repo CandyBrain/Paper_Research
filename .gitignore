@@ -12,4 +12,14 @@ __pycache__/
 *.pyc
 .env
 venv/
-sessions/_autosave.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Data (user-specific)
+sessions/
+projects/*.json
+projects/*.pdf
+papers/*.pdf
+class1/**/*.pdf

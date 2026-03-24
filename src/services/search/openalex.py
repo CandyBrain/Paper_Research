@@ -49,8 +49,16 @@ class OpenAlexSearcher(BaseSearcher):
         total_found = data.get("meta", {}).get("count", 0)
         papers: list[Paper] = []
 
+        # OpenAlex work types that are NOT individual papers
+        _NON_PAPER_TYPES = {"journal", "repository", "ebook-platform", "book-series", "conference", "paratext", "component", "standard"}
+
         for work in data.get("results", []):
             try:
+                # Skip non-paper records (journals, book-series, etc.)
+                work_type = (work.get("type") or "").lower()
+                if work_type in _NON_PAPER_TYPES:
+                    continue
+
                 authors = [
                     authorship["author"]["display_name"]
                     for authorship in work.get("authorships", [])

@@ -64,7 +64,13 @@ class PaperSummarizer:
         manual_path: str = "",
     ) -> str:
         """Summarize a paper. Uses full PDF text if available, otherwise falls back to abstract."""
-        lang_instruction = "한국어로 답변해주세요." if language == "ko" else "Answer in English."
+        lang_map = {
+            "ko": "한국어로 답변해주세요.",
+            "en": "Answer in English.",
+            "ja": "日本語で回答してください。",
+            "zh": "请用中文回答。",
+        }
+        lang_instruction = lang_map.get(language, lang_map.get("ko", "한국어로 답변해주세요."))
 
         # Try to find and read full PDF
         pdf_path = find_downloaded_pdf(paper, download_dir, manual_path=manual_path)

@@ -230,6 +230,20 @@ def _collect_references() -> dict[int, dict]:
     return data
 
 
+def _clear_per_paper_state():
+    """Clear all per-paper session state (citations, references, pdf links, etc.)."""
+    keys_to_delete = [
+        key for key in st.session_state
+        if key.startswith((
+            "citations_", "references_", "manual_pdf_", "dl_status_",
+            "attach_expand_", "abstract_trans_", "abstract_show_trans_",
+            "pdf_uploader_",
+        ))
+    ]
+    for key in keys_to_delete:
+        del st.session_state[key]
+
+
 def do_autosave():
     """Auto-save current state to disk."""
     if st.session_state.all_papers:
@@ -624,24 +638,40 @@ section[data-testid="stSidebar"] small {
     color: #a5b4fc !important;
 }
 
-/* ── Action button row: tight spacing ── */
-[data-testid="stHorizontalBlock"] {
-    gap: 0.35rem !important;
+/* ── All column layouts: tight gap ── */
+div[data-testid="stHorizontalBlock"],
+div[data-testid="column"],
+.stColumns,
+.row-widget {
+    gap: 5px !important;
+    column-gap: 5px !important;
+}
+div[data-testid="stHorizontalBlock"] > div,
+div[data-testid="stColumn"],
+div[data-testid="column"] {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+/* Force via wildcard */
+section.main div[style*="gap"] {
+    gap: 5px !important;
+    column-gap: 5px !important;
 }
 
 /* ── Buttons ── */
 .stButton > button {
-    padding: 0.35rem 0.6rem !important;
+    padding: 0.35rem 0.8rem !important;
     font-size: 0.78rem !important;
     white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
     min-height: 0 !important;
     line-height: 1.3 !important;
     height: 38px !important;
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    width: auto !important;
 }
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
@@ -660,16 +690,23 @@ section[data-testid="stSidebar"] small {
 
 /* ── AI Analysis Box ── */
 .ai-analysis-box {
-    background: linear-gradient(135deg, #f0f4ff 0%, #faf0ff 100%);
-    border: 1px solid #c7d2fe;
+    background: #1e1b4b;
+    border: 1px solid #3730a3;
     border-radius: 12px;
     padding: 1.25rem 1.5rem;
     margin: 1rem 0;
+    color: #c7d2fe;
 }
 .ai-analysis-box h4 {
-    color: #4338ca;
+    color: #a5b4fc;
     margin: 0 0 0.75rem 0;
     font-size: 0.95rem;
+}
+.ai-analysis-box p {
+    color: #e0e7ff;
+}
+.ai-analysis-box strong {
+    color: #a5b4fc;
 }
 
 /* ── Download Result ── */
@@ -698,9 +735,9 @@ section[data-testid="stSidebar"] small {
 /* ── Keyword Tag ── */
 .keyword-tag {
     display: inline-block;
-    background: linear-gradient(135deg, #667eea15, #764ba215);
-    border: 1px solid #c7d2fe;
-    color: #4338ca;
+    background: #312e81;
+    border: 1px solid #4f46e5;
+    color: #c7d2fe;
     padding: 4px 12px;
     border-radius: 20px;
     font-size: 0.78rem;
@@ -1106,6 +1143,7 @@ if search_mode == "Keyword Search":
             with st.spinner("Searching across selected databases..."):
                 results = run_async(orchestrator.search_all(request))
 
+            _clear_per_paper_state()
             st.session_state.search_results = results
             all_papers = SearchOrchestrator.deduplicate(results)
             st.session_state.all_papers = all_papers
@@ -1187,6 +1225,7 @@ else:
 
             all_papers = SearchOrchestrator.deduplicate(all_results)
 
+            _clear_per_paper_state()
             st.session_state.search_results = all_results
             st.session_state.all_papers = all_papers
             st.session_state.selected = set()
@@ -1297,14 +1336,25 @@ if st.session_state.all_papers:
             # Show PDF status
             if detected_pdf:
                 pdf_name = Path(detected_pdf).name
-                st.markdown(f"""
-                <div class="dl-success">
-                    📄 PDF 연결됨: <strong>{pdf_name}</strong>
-                </div>
-                """, unsafe_allow_html=True)
+                pdf_status_col, pdf_unlink_col, _pdf_sp = st.columns([4, 1, 10], gap="small")
+                with pdf_status_col:
+                    st.markdown(f"""
+                    <div class="dl-success">
+                        📄 PDF 연결됨: <strong>{pdf_name}</strong>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with pdf_unlink_col:
+                    if st.button("❌ 해제", key=f"unlink_btn_{i}"):
+                        if manual_pdf_key in st.session_state:
+                            del st.session_state[manual_pdf_key]
+                        if dl_status_key in st.session_state:
+                            del st.session_state[dl_status_key]
+                        do_autosave()
+                        st.toast(f"PDF 연결 해제: {pdf_name}", icon="❌")
+                        st.rerun()
 
             # ── Action buttons row ──
-            btn_dl, btn_sum, btn_cite, btn_ref, btn_attach, _sp = st.columns([1.2, 1.4, 1.2, 1.2, 1.2, 3.8])
+            btn_dl, btn_sum, btn_cite, btn_ref, btn_attach = st.columns(5)
             with btn_dl:
                 if detected_pdf and not (dl_status and dl_status.startswith("fail:")):
                     st.button("✅ Downloaded", key=f"dl_btn_{i}", disabled=True)
@@ -1313,7 +1363,9 @@ if st.session_state.all_papers:
                         output_path = Path(st.session_state.download_dir)
                         output_path.mkdir(parents=True, exist_ok=True)
                         downloader = PaperDownloader(
-                            email=settings.unpaywall_email, proxy_url=proxy_url
+                            email=settings.unpaywall_email, proxy_url=proxy_url,
+                            elsevier_api_key=settings.scopus_api_key,
+                            springer_api_key=getattr(settings, 'springer_api_key', ''),
                         )
 
                         async def _download_one(p, out):
@@ -1498,7 +1550,7 @@ if st.session_state.all_papers:
 
             # ── AI Summary expander ──
             if paper.summary:
-                with st.expander("AI Summary", expanded=True):
+                with st.expander("AI Summary", expanded=False):
                     st.markdown(paper.summary)
 
             # ── Citations expander ──
@@ -1511,7 +1563,7 @@ if st.session_state.all_papers:
 
                 with st.expander(
                     f"📚 Citing Papers ({len(cite_items)} shown / {cite_total} total)",
-                    expanded=True,
+                    expanded=False,
                 ):
                     if cite_error:
                         st.error(f"Citation 조회 실패: {cite_error}")
@@ -1565,7 +1617,7 @@ if st.session_state.all_papers:
 
                 with st.expander(
                     f"📖 References ({len(ref_items)} shown / {ref_total} total)",
-                    expanded=True,
+                    expanded=False,
                 ):
                     if ref_error:
                         st.error(f"Reference 조회 실패: {ref_error}")

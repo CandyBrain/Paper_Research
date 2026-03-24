@@ -129,7 +129,7 @@ async def fetch_citations_openalex(
                 "year": work.get("publication_year"),
                 "doi": doi or None,
                 "abstract": None,  # OpenAlex doesn't return abstract in list
-                "journal": (work.get("primary_location") or {}).get("source", {}).get("display_name") if work.get("primary_location") else None,
+                "journal": ((work.get("primary_location") or {}).get("source") or {}).get("display_name"),
                 "is_oa": oa.get("is_oa", False),
                 "pdf_url": pdf_url,
                 "source": "OpenAlex",
@@ -242,12 +242,16 @@ async def fetch_references_semantic_scholar(
         if resp.status_code != 200:
             return results
 
-        for item in resp.json().get("data", []):
-            cited = item.get("citedPaper", {})
+        response_data = resp.json().get("data")
+        if not response_data:
+            return results
+
+        for item in response_data:
+            cited = item.get("citedPaper") or {}
             if not cited.get("title"):
                 continue
 
-            authors = [a.get("name", "") for a in cited.get("authors", [])]
+            authors = [a.get("name", "") for a in (cited.get("authors") or [])]
             ext_ids = cited.get("externalIds") or {}
             doi = ext_ids.get("DOI")
             oa_pdf = cited.get("openAccessPdf") or {}
@@ -325,7 +329,7 @@ async def fetch_references_openalex(
                     "year": work.get("publication_year"),
                     "doi": doi or None,
                     "abstract": None,
-                    "journal": (work.get("primary_location") or {}).get("source", {}).get("display_name") if work.get("primary_location") else None,
+                    "journal": ((work.get("primary_location") or {}).get("source") or {}).get("display_name"),
                     "is_oa": oa.get("is_oa", False),
                     "pdf_url": oa.get("oa_url"),
                     "source": "OpenAlex",

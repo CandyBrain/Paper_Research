@@ -1,4 +1,21 @@
+import re
+
 from src.models import Paper, SearchResult
+
+
+# DOI patterns that indicate non-paper records (journals, ISSN, series, etc.)
+_INVALID_DOI_PATTERNS = re.compile(
+    r"^10\.\d+/issn\."           # IOP journal ISSN DOIs
+    r"|^10\.\d+/journal\."       # generic journal DOIs
+    r"|^10\.\d+/\d{4}-\d{3}[\dxX]$"  # bare ISSN as DOI
+, re.IGNORECASE)
+
+
+def _is_valid_paper_doi(doi: str | None) -> bool:
+    """Check if a DOI looks like an actual paper DOI (not a journal/series)."""
+    if not doi:
+        return True  # no DOI is OK, just can't filter
+    return not _INVALID_DOI_PATTERNS.search(doi.strip())
 
 
 def deduplicate_papers(
@@ -7,6 +24,7 @@ def deduplicate_papers(
 ) -> list[Paper]:
     """Remove duplicate papers based on DOI and title similarity.
 
+    Also filters out non-paper records (journals, ISSN DOIs, etc.).
     Accepts either a list of SearchResult objects or a flat list of Paper objects.
     Returns a deduplicated list preserving the original order.
     """
@@ -22,6 +40,10 @@ def deduplicate_papers(
     unique: list[Paper] = []
 
     for paper in all_papers:
+        # Filter out non-paper DOIs (journal/ISSN records)
+        if not _is_valid_paper_doi(paper.doi):
+            continue
+
         doi_key = paper.doi.lower().strip() if paper.doi else None
         title_key = paper.title.lower().strip()[:80] if paper.title else None
 
